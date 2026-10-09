@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Keuangan Hijriah - Offline First</title>
+    <!-- Tailwind CSS & FontAwesome Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS untuk Ekspor Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        #toast {
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .toast-hidden { opacity: 0; transform: translateY(-20px) scale(0.9); pointer-events: none; }
+        .toast-visible { opacity: 1; transform: translateY(0) scale(1); }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 pb-28">
+
+    <!-- Modern Floating Notification Toast -->
+    <div id="toast" class="toast-hidden fixed top-5 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-md bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div id="toast-icon" class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <div>
+                <h4 id="toast-title" class="text-xs font-bold">Pemberitahuan</h4>
+                <p id="toast-message" class="text-[11px] text-slate-300">Pesan...</p>
+            </div>
+        </div>
+        <button onclick="hideToast()" class="text-slate-400 hover:text-white p-1">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+    </div>
+
+    <!-- Header Banner Hijriah -->
+    <header class="bg-gradient-to-br from-emerald-800 via-teal-800 to-slate-900 text-white p-6 rounded-b-[2rem] shadow-xl max-w-lg mx-auto">
+        <div class="flex justify-between items-center mb-3">
+            <span class="text-[10px] uppercase tracking-wider text-emerald-300 font-extrabold bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-500/30">
+                <i class="fa-solid fa-moon mr-1.5 text-amber-300"></i> Kalender Hijriah
+            </span>
+            <div class="flex items-center space-x-1.5">
+                <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                <span id="sync-status-text" class="text-[10px] text-teal-200 font-medium">Offline Mode</span>
+            </div>
+        </div>
+        <h1 id="hijri-display" class="text-xl font-extrabold tracking-tight">Memuat Tanggal...</h1>
+        <p class="text-xs text-teal-100/80 mt-1 font-medium" id="masehi-display"></p>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-lg mx-auto p-4">
+
+        <!-- ================= TAB 1: DASHBOARD ================= -->
+        <section id="tab-dashboard" class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60">
+                    <div class="flex items-center space-x-2 text-emerald-600 mb-1">
+                        <div class="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
+                            <i class="fa-solid fa-arrow-down text-xs"></i>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pemasukan</span>
+                    </div>
+                    <p id="total-pemasukan" class="text-base font-extrabold text-slate-800">Rp 0</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60">
+                    <div class="flex items-center space-x-2 text-rose-500 mb-1">
+                        <div class="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center">
+                            <i class="fa-solid fa-arrow-up text-xs"></i>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pengeluaran</span>
+                    </div>
+                    <p id="total-pengeluaran" class="text-base font-extrabold text-slate-800">Rp 0</p>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-emerald-900 to-teal-900 text-white p-5 rounded-2xl shadow-lg flex justify-between items-center border border-emerald-700/50">
+                <div>
+                    <span class="text-[10px] text-emerald-300 font-bold uppercase tracking-widest">Sisa Saldo Anggaran</span>
+                    <h3 id="saldo-bersih" class="text-2xl font-black mt-0.5">Rp 0</h3>
+                </div>
+                <div class="w-12 h-12 bg-emerald-800/60 rounded-2xl border border-emerald-500/30 flex items-center justify-center text-emerald-300 shadow-inner">
+                    <i class="fa-solid fa-wallet text-xl"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-700">Total Transaksi Lokal</h4>
+                        <p id="total-item-count" class="text-[11px] text-slate-400">0 tersimpan</p>
+                    </div>
+                </div>
+                <button onclick="switchTab('data')" class="text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-xl transition">
+                    Lihat
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: INPUT TRANSAKSI ================= -->
+        <section id="tab-input" class="hidden">
+            <form id="finance-form" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/60 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center">
+                        <i class="fa-solid fa-pen-to-square text-emerald-600 mr-2"></i> Input Transaksi Baru
+                    </h2>
+                    <button type="button" onclick="toggleCustomDate()" class="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition">
+                        <i class="fa-solid fa-calendar-day mr-1"></i> Custom Tanggal
+                    </button>
+                </div>
+
+                <div id="custom-date-box" class="hidden bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <span class="text-[11px] font-bold text-slate-600 block">Kustomisasi Tanggal Hijriah:</span>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[9px] text-slate-400 font-bold uppercase">Hari Hijriah</label>
+                            <input type="text" id="inputHariHijriah" class="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white font-semibold outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-slate-400 font-bold uppercase">Tanggal / Bulan / Tahun</label>
+                            <input type="text" id="inputTanggalHijriah" class="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white font-semibold outline-none focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Jenis Transaksi</label>
+                    <div class="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl">
+                        <button type="button" id="btn-pengeluaran" onclick="selectJenis('Pengeluaran')" class="py-2.5 text-xs font-bold rounded-lg transition bg-rose-500 text-white shadow-sm flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                            <span>Pengeluaran</span>
+                        </button>
+                        <button type="button" id="btn-pemasukan" onclick="selectJenis('Pemasukan')" class="py-2.5 text-xs font-bold text-slate-500 rounded-lg transition flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-arrow-down-to-bracket"></i>
+                            <span>Pemasukan</span>
+                        </button>
+                    </div>
+                    <input type="hidden" id="jenis" value="Pengeluaran">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Nama Barang / Uraian</label>
+                    <input type="text" id="namaBarang" required placeholder="Contoh: Blanko Ijazah & Danim" class="w-full bg-slate-50 border border-slate-200 text-slate-800 p-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">SESI</label>
+                        <input type="number" id="sesi" min="1" value="1" oninput="hitungTotalLive()" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 p-2.5 rounded-xl text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">QTY (Jumlah)</label>
+                        <input type="number" id="jumlah" min="1" value="1" oninput="hitungTotalLive()" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 p-2.5 rounded-xl text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">HARGA (Rp)</label>
+                        <input type="number" id="hargaSatuan" min="0" placeholder="0" oninput="hitungTotalLive()" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 p-2.5 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div class="bg-emerald-50/80 p-3.5 rounded-xl border border-emerald-200/60 space-y-1">
+                    <div class="flex justify-between items-center text-[11px] text-emerald-800 font-medium">
+                        <span>Rumus Total RAPB:</span>
+                        <span id="formula-preview" class="font-bold">1 Sesi × 1 Qty × Rp 0</span>
+                    </div>
+                    <div class="flex justify-between items-center border-t border-emerald-200/50 pt-1">
+                        <span class="text-xs font-bold text-emerald-900">Total Harga:</span>
+                        <span id="live-total" class="text-sm font-black text-emerald-700">Rp 0</span>
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs tracking-wide shadow-md hover:shadow-lg active:scale-[0.99] transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>SIMPAN SECARA LOKAL</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- ================= TAB 3: DATA & EKSPOR EXCEL ================= -->
+        <section id="tab-data" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center">
+                        <i class="fa-solid fa-table-list text-emerald-600 mr-2"></i> Data Keuangan Lokal
+                    </h2>
+                    <button onclick="syncWithCloud()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl font-bold transition flex items-center space-x-1">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Sinkronisasi</span>
+                    </button>
+                </div>
+
+                <button onclick="exportToExcel()" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-sm transition">
+                    <i class="fa-solid fa-file-excel text-sm"></i>
+                    <span>Ekspor Laporan Ke Excel (.xlsx)</span>
+                </button>
+
+                <div class="relative">
+                    <input type="text" id="search-input" onkeyup="filterTable()" placeholder="Cari uraian barang atau tanggal..." class="w-full bg-slate-50 border border-slate-200 text-xs p-2.5 pl-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-3 text-slate-400 text-xs"></i>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-200/80">
+                    <table class="w-full text-left border-collapse text-[11px]" id="data-table">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                                <th class="p-2.5">Uraian Barang</th>
+                                <th class="p-2.5 text-center">Sesi × Qty</th>
+                                <th class="p-2.5 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-slate-100 text-slate-700">
+                            <tr>
+                                <td colspan="3" class="p-4 text-center text-slate-400">Memuat data dari penyimpanan lokal...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 p-2 max-w-lg mx-auto z-40">
+        <div class="grid grid-cols-3 text-center">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="py-1 text-emerald-600 flex flex-col items-center">
+                <i class="fa-solid fa-chart-pie text-lg"></i>
+                <span class="text-[10px] font-bold mt-0.5">Dashboard</span>
+            </button>
+            <button onclick="switchTab('input')" id="nav-input" class="py-1 text-slate-400 flex flex-col items-center">
+                <i class="fa-solid fa-circle-plus text-lg"></i>
+                <span class="text-[10px] font-bold mt-0.5">Input Data</span>
+            </button>
+            <button onclick="switchTab('data')" id="nav-data" class="py-1 text-slate-400 flex flex-col items-center">
+                <i class="fa-solid fa-database text-lg"></i>
+                <span class="text-[10px] font-bold mt-0.5">Data & Ekspor</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- JAVASCRIPT LOGIC: OFFLINE-FIRST & LOCALSTORAGE SYNC -->
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwUw3Px5oSOgrrlPxR5tiaSUYPvnYyRDwXCs7LqrvJrj00SoesZYFHv9EGLHQbjN_urBw/exec";
+        const LOCAL_KEY = "keuangan_hijriah_local_data";
+
+        // Ambil data lokal saat aplikasi dibuka pertama kali
+        let localData = JSON.parse(localStorage.getItem(LOCAL_KEY)) || [];
+
+        function formatRupiah(num) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+        }
+
+        function showToast(title, message, isSuccess = true) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-message').innerText = message;
+
+            if (isSuccess) {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold";
+                icon.innerHTML = `<i class="fa-solid fa-check"></i>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold";
+                icon.innerHTML = `<i class="fa-solid fa-xmark"></i>`;
+            }
+
+            toast.classList.remove('toast-hidden');
+            toast.classList.add('toast-visible');
+            setTimeout(() => hideToast(), 3500);
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('toast-visible');
+            toast.classList.add('toast-hidden');
+        }
+
+        function initHijriDate() {
+            try {
+                const now = new Date();
+                const fHari = new Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura', { weekday: 'long' });
+                const fTgl = new Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' });
+                
+                const hari = fHari.format(now);
+                const tgl = fTgl.format(now) + " H";
+
+                document.getElementById('hijri-display').innerText = `${hari}, ${tgl}`;
+                document.getElementById('masehi-display').innerText = `Masehi: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+                
+                document.getElementById('inputHariHijriah').value = hari;
+                document.getElementById('inputTanggalHijriah').value = tgl;
+            } catch (e) {
+                document.getElementById('hijri-display').innerText = "Tanggal Hijriah Realtime";
+            }
+        }
+
+        function toggleCustomDate() {
+            document.getElementById('custom-date-box').classList.toggle('hidden');
+        }
+
+        function selectJenis(jenis) {
+            document.getElementById('jenis').value = jenis;
+            const btnP = document.getElementById('btn-pengeluaran');
+            const btnM = document.getElementById('btn-pemasukan');
+
+            if (jenis === 'Pengeluaran') {
+                btnP.className = "py-2.5 text-xs font-bold rounded-lg transition bg-rose-500 text-white shadow-sm flex items-center justify-center space-x-1.5";
+                btnM.className = "py-2.5 text-xs font-bold text-slate-500 rounded-lg transition flex items-center justify-center space-x-1.5";
+            } else {
+                btnM.className = "py-2.5 text-xs font-bold rounded-lg transition bg-emerald-600 text-white shadow-sm flex items-center justify-center space-x-1.5";
+                btnP.className = "py-2.5 text-xs font-bold text-slate-500 rounded-lg transition flex items-center justify-center space-x-1.5";
+            }
+        }
+
+        function hitungTotalLive() {
+            const sesi = parseFloat(document.getElementById('sesi').value) || 1;
+            const qty = parseFloat(document.getElementById('jumlah').value) || 0;
+            const harga = parseFloat(document.getElementById('hargaSatuan').value) || 0;
+            const total = sesi * qty * harga;
+
+            document.getElementById('formula-preview').innerText = `${sesi} Sesi × ${qty} Qty × ${formatRupiah(harga)}`;
+            document.getElementById('live-total').innerText = formatRupiah(total);
+        }
+
+        function switchTab(tab) {
+            ['dashboard', 'input', 'data'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`nav-${t}`).className = "py-1 text-slate-400 flex flex-col items-center";
+            });
+
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`nav-${tab}`).className = "py-1 text-emerald-600 flex flex-col items-center";
+        }
+
+        // ================= SIMPAN SECARA LOKAL & BACKGROUND SYNC =================
+        document.getElementById('finance-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const sesi = parseFloat(document.getElementById('sesi').value) || 1;
+            const qty = parseFloat(document.getElementById('jumlah').value) || 0;
+            const harga = parseFloat(document.getElementById('hargaSatuan').value) || 0;
+            const total = sesi * qty * harga;
+
+            const newTransaction = {
+                timestamp: new Date().toISOString(),
+                hariHijriah: document.getElementById('inputHariHijriah').value,
+                tanggalHijriah: document.getElementById('inputTanggalHijriah').value,
+                sesi: sesi,
+                jenis: document.getElementById('jenis').value,
+                namaBarang: document.getElementById('namaBarang').value,
+                jumlah: qty,
+                hargaSatuan: harga,
+                total: total,
+                synced: false // Penanda apakah sudah terkirim ke cloud
+            };
+
+            // Simpan instan ke localStorage (Super Cepat & Aman Offline)
+            localData.push(newTransaction);
+            localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
+
+            // Refresh UI Dashboard & Tabel Seketika
+            renderTable(localData);
+            calculateDashboard(localData);
+
+            showToast("Tersimpan Lokal!", "Data berhasil dicatat di perangkat.", true);
+            document.getElementById('finance-form').reset();
+            initHijriDate();
+            hitungTotalLive();
+
+            // Kirim ke Spreadsheet secara diam-diam di latar belakang (Background Sync)
+            backgroundSyncOne(newTransaction);
+        });
+
+        // Background Sync 1 Data Baru ke Apps Script
+        function backgroundSyncOne(item) {
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            }).then(() => {
+                // Tandai sudah tersinkronisasi
+                item.synced = true;
+                localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
+                updateSyncIndicator(true);
+            }).catch(() => {
+                updateSyncIndicator(false);
+            });
+        }
+
+        // Sinkronisasi manual / Refresh dengan Cloud
+        function syncWithCloud() {
+            showToast("Sinkronisasi", "Memeriksa pembaruan dari cloud...", true);
+            fetch(SCRIPT_URL)
+            .then(res => res.json())
+            .then(cloudData => {
+                if (Array.isArray(cloudData) && cloudData.length > 0) {
+                    // Gabungkan data cloud dengan lokal agar tidak tertimpa
+                    localData = cloudData;
+                    localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
+                    renderTable(localData);
+                    calculateDashboard(localData);
+                    showToast("Berhasil", "Data sinkron dengan Google Spreadsheet.", true);
+                    updateSyncIndicator(true);
+                }
+            })
+            .catch(() => {
+                showToast("Offline", "Gagal terhubung, menggunakan data lokal.", false);
+                updateSyncIndicator(false);
+            });
+        }
+
+        function updateSyncIndicator(isOnline) {
+            const dot = document.getElementById('sync-status-dot');
+            const text = document.getElementById('sync-status-text');
+            if (isOnline) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-400";
+                text.innerText = "Online & Sinkron";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+                text.innerText = "Mode Offline";
+            }
+        }
+
+        // Render Tabel
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-400">Belum ada transaksi tersimpan.</td></tr>`;
+                document.getElementById('total-item-count').innerText = `0 tersimpan`;
+                return;
+            }
+
+            document.getElementById('total-item-count').innerText = `${data.length} transaksi`;
+
+            data.slice().reverse().forEach(item => {
+                const isMasuk = item.jenis === 'Pemasukan';
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50 transition";
+                row.innerHTML = `
+                    <td class="p-2.5 border-b">
+                        <span class="font-bold text-slate-800 block">${item.namaBarang}</span>
+                        <span class="text-[10px] text-slate-400">${item.hariHijriah}, ${item.tanggalHijriah}</span>
+                    </td>
+                    <td class="p-2.5 border-b text-center">
+                        <span class="font-bold text-slate-700 block">${item.sesi || 1} × ${item.jumlah}</span>
+                        <span class="text-[10px] text-slate-400">@${formatRupiah(item.hargaSatuan)}</span>
+                    </td>
+                    <td class="p-2.5 border-b text-right font-black ${isMasuk ? 'text-emerald-600' : 'text-rose-500'}">
+                        ${isMasuk ? '+' : '-'}${formatRupiah(item.total)}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Kalkulasi Dashboard
+        function calculateDashboard(data) {
+            let masuk = 0;
+            let keluar = 0;
+
+            data.forEach(d => {
+                const tot = parseFloat(d.total) || 0;
+                if (d.jenis === 'Pemasukan') {
+                    masuk += tot;
+                } else {
+                    keluar += tot;
+                }
+            });
+
+            document.getElementById('total-pemasukan').innerText = formatRupiah(masuk);
+            document.getElementById('total-pengeluaran').innerText = formatRupiah(keluar);
+            document.getElementById('saldo-bersih').innerText = formatRupiah(masuk - keluar);
+        }
+
+        // Filter Pencarian Lokal
+        function filterTable() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const filtered = localData.filter(d => 
+                d.namaBarang.toLowerCase().includes(query) || 
+                d.tanggalHijriah.toLowerCase().includes(query)
+            );
+            renderTable(filtered);
+        }
+
+        // Ekspor ke Excel (.xlsx) dengan Rumus Asli dan Nama Dinamis
+        function exportToExcel() {
+            if (localData.length === 0) {
+                showToast("Peringatan", "Tidak ada data untuk diekspor.", false);
+                return;
+            }
+
+            // Format tanggal hari ini untuk nama file (misal: 10 Oktober 2026)
+            const today = new Date();
+            const tglExport = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const fileName = `Laporan Keuangan Imni - ${tglExport}.xlsx`;
+
+            // Siapkan array data untuk sheet
+            let excelRows = [];
+            
+            // Header Tabel (Baris 1)
+            excelRows.push({
+                "Timestamp": "Waktu Input",
+                "Hari Hijriah": "Hari Hijriah",
+                "Tanggal Hijriah": "Tanggal Hijriah",
+                "Sesi": "Sesi",
+                "Jenis": "Jenis",
+                "Nama Barang / Uraian": "Nama Barang / Uraian",
+                "Qty": "Qty",
+                "Harga Satuan (Rp)": "Harga Satuan",
+                "Total (Rumus Excel)": "" // Kolom Total yang akan diisi rumus
+            });
+
+            // Masukkan data baris per baris dengan rumus Excel
+            localData.forEach((d, index) => {
+                let rowNum = index + 2; // Karena baris 1 adalah header, data mulai baris 2
+                
+                excelRows.push({
+                    "Timestamp": d.timestamp,
+                    "Hari Hijriah": d.hariHijriah,
+                    "Tanggal Hijriah": d.tanggalHijriah,
+                    "Sesi": d.sesi || 1,
+                    "Jenis": d.jenis,
+                    "Nama Barang / Uraian": d.namaBarang,
+                    "Qty": d.jumlah,
+                    "Harga Satuan (Rp)": d.hargaSatuan,
+                    // RUMUS EXCEL ASLI: Sesi (Kolom D) * Qty (Kolom G) * Harga Satuan (Kolom H)
+                    // Menggunakan notifikasi Excel standard (misal: D2 * G2 * H2)
+                    "Total (Rumus Excel)": { t: 'n', f: `D${rowNum}*G${rowNum}*H${rowNum}` }
+                });
+            });
+
+            // Baris Total Keseluruhan di bagian paling bawah
+            let lastRow = localData.length + 1;
+            excelRows.push({
+                "Timestamp": "",
+                "Hari Hijriah": "",
+                "Tanggal Hijriah": "",
+                "Sesi": "",
+                "Jenis": "",
+                "Nama Barang / Uraian": "TOTAL KESELURUHAN KEUANGAN",
+                "Qty": "",
+                "Harga Satuan (Rp)": "",
+                // RUMUS SUM KESELURUHAN: =SUM(I2:I{lastRow})
+                "Total (Rumus Excel)": { t: 'n', f: `SUM(I2:I${lastRow})` }
+            });
+
+            // Buat Workbook & Worksheet menggunakan SheetJS
+            const ws = XLSX.utils.json_to_sheet(excelRows, { skipHeader: true });
+            
+            // Sesuaikan lebar kolom agar rapi saat dibuka di Excel
+            ws['!cols'] = [
+                {wch: 20}, {wch: 15}, {wch: 20}, {wch: 8}, {wch: 12}, {wch: 30}, {wch: 8}, {wch: 15}, {wch: 20}
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Laporan Keuangan");
+            
+            // Unduh file dengan nama dinamis
+            XLSX.writeFile(wb, fileName);
+            showToast("Berhasil Ekspor!", `File "${fileName}" telah diunduh dengan rumus aktif.`, true);
+        }
+
+        // Jalankan saat pertama kali dimuat
+        initHijriDate();
+        hitungTotalLive();
+        renderTable(localData);
+        calculateDashboard(localData);
+
+        // Cek koneksi & ambil data terbaru dari cloud di background saat web dibuka
+        setTimeout(() => {
+            syncWithCloud();
+        }, 1000);
+    </script>
+</body>
+</html>
