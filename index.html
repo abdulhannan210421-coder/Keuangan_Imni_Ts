@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Keuangan Hijriah - Offline First</title>
+    <title>Sistem Keuangan Imni Tsanawiyah</title>
     <!-- Tailwind CSS & FontAwesome Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SheetJS untuk Ekspor Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js untuk Grafik Tren & Statistik -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -49,6 +51,20 @@
                 <span id="sync-status-text" class="text-[10px] text-teal-200 font-medium">Offline Mode</span>
             </div>
         </div>
+
+        <!-- Informasi User & Tombol Ubah Nama -->
+        <div class="flex justify-between items-end mb-2 border-b border-teal-700/50 pb-2">
+            <div>
+                <span class="text-[10px] text-teal-200 uppercase font-semibold">Pengguna</span>
+                <h2 id="user-display-name" class="text-sm font-bold text-amber-300 flex items-center gap-1 cursor-pointer" onclick="openProfileModal()">
+                    <i class="fa-solid fa-user-gear text-xs"></i> <span id="user-name-text">Belum Diatur</span>
+                </h2>
+            </div>
+            <button onclick="speakWelcome()" class="text-[10px] bg-teal-700/80 hover:bg-teal-600 px-2.5 py-1 rounded-lg text-emerald-100 font-semibold flex items-center gap-1 transition">
+                <i class="fa-solid fa-volume-high"></i> Sapa Suara
+            </button>
+        </div>
+
         <h1 id="hijri-display" class="text-xl font-extrabold tracking-tight">Memuat Tanggal...</h1>
         <p class="text-xs text-teal-100/80 mt-1 font-medium" id="masehi-display"></p>
     </header>
@@ -58,13 +74,14 @@
 
         <!-- ================= TAB 1: DASHBOARD ================= -->
         <section id="tab-dashboard" class="space-y-4">
+            <!-- Summary Balance Cards -->
             <div class="grid grid-cols-2 gap-3">
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60">
                     <div class="flex items-center space-x-2 text-emerald-600 mb-1">
                         <div class="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center">
                             <i class="fa-solid fa-arrow-down text-xs"></i>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pemasukan</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Pemasukan</span>
                     </div>
                     <p id="total-pemasukan" class="text-base font-extrabold text-slate-800">Rp 0</p>
                 </div>
@@ -74,12 +91,13 @@
                         <div class="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center">
                             <i class="fa-solid fa-arrow-up text-xs"></i>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pengeluaran</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Pengeluaran</span>
                     </div>
                     <p id="total-pengeluaran" class="text-base font-extrabold text-slate-800">Rp 0</p>
                 </div>
             </div>
 
+            <!-- Net Saldo -->
             <div class="bg-gradient-to-r from-emerald-900 to-teal-900 text-white p-5 rounded-2xl shadow-lg flex justify-between items-center border border-emerald-700/50">
                 <div>
                     <span class="text-[10px] text-emerald-300 font-bold uppercase tracking-widest">Sisa Saldo Anggaran</span>
@@ -90,6 +108,46 @@
                 </div>
             </div>
 
+            <!-- GRAFIK TREN KEUANGAN -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-slate-800 flex items-center">
+                        <i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Grafik Tren Transaksi
+                    </h3>
+                    <span class="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">Berdasarkan Tanggal</span>
+                </div>
+                <div class="relative w-full h-48">
+                    <canvas id="financeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- RINGKASAN STATISTIK & ANALISIS KEUANGAN -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 space-y-3">
+                <h3 class="text-xs font-bold text-slate-800 flex items-center border-b border-slate-100 pb-2">
+                    <i class="fa-solid fa-chart-pie text-teal-600 mr-2"></i> Analisis & Statistik Keuangan
+                </h3>
+                
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Pengeluaran Terbesar</span>
+                        <p id="stat-max-pengeluaran" class="font-bold text-rose-600 mt-0.5">Rp 0</p>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Pemasukan Terbesar</span>
+                        <p id="stat-max-pemasukan" class="font-bold text-emerald-600 mt-0.5">Rp 0</p>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Rata-rata / Transaksi</span>
+                        <p id="stat-avg-transaksi" class="font-bold text-slate-700 mt-0.5">Rp 0</p>
+                    </div>
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Rasio Beban (Pengeluaran)</span>
+                        <p id="stat-rasio-beban" class="font-bold text-amber-600 mt-0.5">0%</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Items Counter -->
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 flex justify-between items-center">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
@@ -247,13 +305,45 @@
         </div>
     </nav>
 
-    <!-- JAVASCRIPT LOGIC: OFFLINE-FIRST & LOCALSTORAGE SYNC -->
+    <!-- MODAL SETTING PROFIL PENGGUNA -->
+    <div id="modal-profile" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl space-y-4 border border-slate-100">
+            <div class="text-center">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">
+                    <i class="fa-solid fa-user-astronaut"></i>
+                </div>
+                <h3 class="font-extrabold text-slate-800 text-base">Atur Profil Pengguna</h3>
+                <p class="text-xs text-slate-500">Digunakan untuk sapaan suara otomatis saat aplikasi dibuka.</p>
+            </div>
+
+            <div class="space-y-3 text-left">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Panggilan (Gelar)</label>
+                    <select id="profile-panggilan" class="w-full bg-slate-50 border border-slate-200 text-slate-800 p-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="Tuan">Tuan</option>
+                        <option value="Nyonya">Nyonya</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Nama Anda</label>
+                    <input type="text" id="profile-nama" placeholder="Contoh: Abdul Hannan" class="w-full bg-slate-50 border border-slate-200 text-slate-800 p-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+            </div>
+
+            <button onclick="saveUserProfile()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-xs tracking-wide shadow-md transition">
+                SIMPAN PROFIL
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
     <script>
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwUw3Px5oSOgrrlPxR5tiaSUYPvnYyRDwXCs7LqrvJrj00SoesZYFHv9EGLHQbjN_urBw/exec";
         const LOCAL_KEY = "keuangan_hijriah_local_data";
+        const USER_KEY = "keuangan_hijriah_user_profile";
 
-        // Ambil data lokal saat aplikasi dibuka pertama kali
         let localData = JSON.parse(localStorage.getItem(LOCAL_KEY)) || [];
+        let financeChartInstance = null; // Variabel penampung instance Chart.js
 
         function formatRupiah(num) {
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
@@ -282,6 +372,64 @@
             const toast = document.getElementById('toast');
             toast.classList.remove('toast-visible');
             toast.classList.add('toast-hidden');
+        }
+
+        // ================= PROFIL PENGGUNA & TTS SUARA =================
+        function loadUserProfile() {
+            const user = JSON.parse(localStorage.getItem(USER_KEY));
+            if (user && user.nama) {
+                document.getElementById('user-name-text').innerText = `${user.panggilan} ${user.nama}`;
+            } else {
+                document.getElementById('user-name-text').innerText = "Belum Diatur";
+                openProfileModal();
+            }
+        }
+
+        function openProfileModal() {
+            const user = JSON.parse(localStorage.getItem(USER_KEY)) || { panggilan: "Tuan", nama: "" };
+            document.getElementById('profile-panggilan').value = user.panggilan;
+            document.getElementById('profile-nama').value = user.nama;
+            document.getElementById('modal-profile').classList.remove('hidden');
+        }
+
+        function saveUserProfile() {
+            const panggilan = document.getElementById('profile-panggilan').value;
+            const nama = document.getElementById('profile-nama').value.trim();
+
+            if (!nama) {
+                alert("Harap masukkan nama Anda!");
+                return;
+            }
+
+            const profileData = { panggilan, nama };
+            localStorage.setItem(USER_KEY, JSON.stringify(profileData));
+            document.getElementById('modal-profile').classList.add('hidden');
+            document.getElementById('user-name-text').innerText = `${panggilan} ${nama}`;
+            
+            showToast("Profil Disimpan", `Selamat datang ${panggilan} ${nama}!`, true);
+            speakWelcome();
+        }
+
+        function speakWelcome() {
+            const user = JSON.parse(localStorage.getItem(USER_KEY));
+            if (!user || !user.nama) return;
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+
+                const textToSpeak = `Assalamualaikum warahmatullah wabarakatuh, Selamat datang kembali ${user.panggilan} ${user.nama}, ada transaksi apa hari ini?`;
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                
+                utterance.lang = 'id-ID';
+                utterance.rate = 0.9;
+                utterance.pitch = 1.0;
+
+                const voices = window.speechSynthesis.getVoices();
+                const idVoice = voices.find(v => v.lang.includes('id') || v.lang.includes('ID'));
+                if (idVoice) utterance.voice = idVoice;
+
+                window.speechSynthesis.speak(utterance);
+            }
         }
 
         function initHijriDate() {
@@ -341,7 +489,7 @@
             document.getElementById(`nav-${tab}`).className = "py-1 text-emerald-600 flex flex-col items-center";
         }
 
-        // ================= SIMPAN SECARA LOKAL & BACKGROUND SYNC =================
+        // ================= PENYIMPANAN LOKAL & BACKGROUND SYNC =================
         document.getElementById('finance-form').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -360,14 +508,12 @@
                 jumlah: qty,
                 hargaSatuan: harga,
                 total: total,
-                synced: false // Penanda apakah sudah terkirim ke cloud
+                synced: false
             };
 
-            // Simpan instan ke localStorage (Super Cepat & Aman Offline)
             localData.push(newTransaction);
             localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
 
-            // Refresh UI Dashboard & Tabel Seketika
             renderTable(localData);
             calculateDashboard(localData);
 
@@ -376,11 +522,9 @@
             initHijriDate();
             hitungTotalLive();
 
-            // Kirim ke Spreadsheet secara diam-diam di latar belakang (Background Sync)
             backgroundSyncOne(newTransaction);
         });
 
-        // Background Sync 1 Data Baru ke Apps Script
         function backgroundSyncOne(item) {
             fetch(SCRIPT_URL, {
                 method: 'POST',
@@ -388,7 +532,6 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(item)
             }).then(() => {
-                // Tandai sudah tersinkronisasi
                 item.synced = true;
                 localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
                 updateSyncIndicator(true);
@@ -397,14 +540,12 @@
             });
         }
 
-        // Sinkronisasi manual / Refresh dengan Cloud
         function syncWithCloud() {
             showToast("Sinkronisasi", "Memeriksa pembaruan dari cloud...", true);
             fetch(SCRIPT_URL)
             .then(res => res.json())
             .then(cloudData => {
                 if (Array.isArray(cloudData) && cloudData.length > 0) {
-                    // Gabungkan data cloud dengan lokal agar tidak tertimpa
                     localData = cloudData;
                     localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
                     renderTable(localData);
@@ -431,7 +572,6 @@
             }
         }
 
-        // Render Tabel
         function renderTable(data) {
             const tbody = document.getElementById('table-body');
             tbody.innerHTML = '';
@@ -465,26 +605,119 @@
             });
         }
 
-        // Kalkulasi Dashboard
+        // ================= KALKULASI DASHBOARD, STATISTIK & GRAFIK =================
         function calculateDashboard(data) {
             let masuk = 0;
             let keluar = 0;
+            let maxKeluar = 0;
+            let maxMasuk = 0;
+
+            // Pengelompokan Data Berdasarkan Tanggal untuk Grafik
+            const dateGroups = {};
 
             data.forEach(d => {
                 const tot = parseFloat(d.total) || 0;
+                const tglKey = d.tanggalHijriah || 'Lainnya';
+
+                if (!dateGroups[tglKey]) {
+                    dateGroups[tglKey] = { masuk: 0, keluar: 0 };
+                }
+
                 if (d.jenis === 'Pemasukan') {
                     masuk += tot;
+                    if (tot > maxMasuk) maxMasuk = tot;
+                    dateGroups[tglKey].masuk += tot;
                 } else {
                     keluar += tot;
+                    if (tot > maxKeluar) maxKeluar = tot;
+                    dateGroups[tglKey].keluar += tot;
                 }
             });
 
+            // Update Total Saldo Card
             document.getElementById('total-pemasukan').innerText = formatRupiah(masuk);
             document.getElementById('total-pengeluaran').innerText = formatRupiah(keluar);
             document.getElementById('saldo-bersih').innerText = formatRupiah(masuk - keluar);
+
+            // Update Kartu Statistik Keuangan
+            const totalTransaksi = data.length;
+            const avgTransaksi = totalTransaksi > 0 ? (masuk + keluar) / totalTransaksi : 0;
+            const rasioBeban = masuk > 0 ? ((keluar / masuk) * 100).toFixed(1) : (keluar > 0 ? 100 : 0);
+
+            document.getElementById('stat-max-pengeluaran').innerText = formatRupiah(maxKeluar);
+            document.getElementById('stat-max-pemasukan').innerText = formatRupiah(maxMasuk);
+            document.getElementById('stat-avg-transaksi').innerText = formatRupiah(avgTransaksi);
+            document.getElementById('stat-rasio-beban').innerText = `${rasioBeban}%`;
+
+            // Render Grafik Tren
+            renderFinanceChart(dateGroups);
         }
 
-        // Filter Pencarian Lokal
+        function renderFinanceChart(dateGroups) {
+            const ctx = document.getElementById('financeChart').getContext('2d');
+            
+            // Ambil maksimal 7 tanggal terakhir agar grafik tetap rapi
+            const labels = Object.keys(dateGroups).slice(-7);
+            const dataPemasukan = labels.map(lbl => dateGroups[lbl].masuk);
+            const dataPengeluaran = labels.map(lbl => dateGroups[lbl].keluar);
+
+            // Hancurkan chart lama jika ada sebelum merender chart baru
+            if (financeChartInstance) {
+                financeChartInstance.destroy();
+            }
+
+            financeChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.length > 0 ? labels : ['Belum Ada Data'],
+                    datasets: [
+                        {
+                            label: 'Pemasukan',
+                            data: dataPemasukan.length > 0 ? dataPemasukan : [0],
+                            backgroundColor: '#10b981', // Emerald-500
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Pengeluaran',
+                            data: dataPengeluaran.length > 0 ? dataPengeluaran : [0],
+                            backgroundColor: '#f43f5e', // Rose-500
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { size: 10, family: 'Plus Jakarta Sans' },
+                                boxWidth: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { font: { size: 9 } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            ticks: { 
+                                font: { size: 9 },
+                                callback: function(value) {
+                                    if (value >= 1000000) return (value / 1000000) + 'Jt';
+                                    if (value >= 1000) return (value / 1000) + 'Rb';
+                                    return value;
+                                }
+                            },
+                            grid: { color: '#f1f5f9' }
+                        }
+                    }
+                }
+            });
+        }
+
         function filterTable() {
             const query = document.getElementById('search-input').value.toLowerCase();
             const filtered = localData.filter(d => 
@@ -494,22 +727,18 @@
             renderTable(filtered);
         }
 
-        // Ekspor ke Excel (.xlsx) dengan Rumus Asli dan Nama Dinamis
         function exportToExcel() {
             if (localData.length === 0) {
                 showToast("Peringatan", "Tidak ada data untuk diekspor.", false);
                 return;
             }
 
-            // Format tanggal hari ini untuk nama file (misal: 10 Oktober 2026)
             const today = new Date();
             const tglExport = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
             const fileName = `Laporan Keuangan Imni - ${tglExport}.xlsx`;
 
-            // Siapkan array data untuk sheet
             let excelRows = [];
             
-            // Header Tabel (Baris 1)
             excelRows.push({
                 "Timestamp": "Waktu Input",
                 "Hari Hijriah": "Hari Hijriah",
@@ -519,13 +748,11 @@
                 "Nama Barang / Uraian": "Nama Barang / Uraian",
                 "Qty": "Qty",
                 "Harga Satuan (Rp)": "Harga Satuan",
-                "Total (Rumus Excel)": "" // Kolom Total yang akan diisi rumus
+                "Total (Rumus Excel)": ""
             });
 
-            // Masukkan data baris per baris dengan rumus Excel
             localData.forEach((d, index) => {
-                let rowNum = index + 2; // Karena baris 1 adalah header, data mulai baris 2
-                
+                let rowNum = index + 2;
                 excelRows.push({
                     "Timestamp": d.timestamp,
                     "Hari Hijriah": d.hariHijriah,
@@ -535,13 +762,10 @@
                     "Nama Barang / Uraian": d.namaBarang,
                     "Qty": d.jumlah,
                     "Harga Satuan (Rp)": d.hargaSatuan,
-                    // RUMUS EXCEL ASLI: Sesi (Kolom D) * Qty (Kolom G) * Harga Satuan (Kolom H)
-                    // Menggunakan notifikasi Excel standard (misal: D2 * G2 * H2)
                     "Total (Rumus Excel)": { t: 'n', f: `D${rowNum}*G${rowNum}*H${rowNum}` }
                 });
             });
 
-            // Baris Total Keseluruhan di bagian paling bawah
             let lastRow = localData.length + 1;
             excelRows.push({
                 "Timestamp": "",
@@ -552,14 +776,10 @@
                 "Nama Barang / Uraian": "TOTAL KESELURUHAN KEUANGAN",
                 "Qty": "",
                 "Harga Satuan (Rp)": "",
-                // RUMUS SUM KESELURUHAN: =SUM(I2:I{lastRow})
                 "Total (Rumus Excel)": { t: 'n', f: `SUM(I2:I${lastRow})` }
             });
 
-            // Buat Workbook & Worksheet menggunakan SheetJS
             const ws = XLSX.utils.json_to_sheet(excelRows, { skipHeader: true });
-            
-            // Sesuaikan lebar kolom agar rapi saat dibuka di Excel
             ws['!cols'] = [
                 {wch: 20}, {wch: 15}, {wch: 20}, {wch: 8}, {wch: 12}, {wch: 30}, {wch: 8}, {wch: 15}, {wch: 20}
             ];
@@ -567,21 +787,37 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Laporan Keuangan");
             
-            // Unduh file dengan nama dinamis
             XLSX.writeFile(wb, fileName);
-            showToast("Berhasil Ekspor!", `File "${fileName}" telah diunduh dengan rumus aktif.`, true);
+            showToast("Berhasil Ekspor!", `File "${fileName}" telah diunduh.`, true);
         }
 
-        // Jalankan saat pertama kali dimuat
-        initHijriDate();
-        hitungTotalLive();
-        renderTable(localData);
-        calculateDashboard(localData);
+        // Inisialisasi saat aplikasi pertama dibuka
+        window.addEventListener('DOMContentLoaded', () => {
+            initHijriDate();
+            hitungTotalLive();
+            renderTable(localData);
+            calculateDashboard(localData);
+            loadUserProfile();
 
-        // Cek koneksi & ambil data terbaru dari cloud di background saat web dibuka
-        setTimeout(() => {
-            syncWithCloud();
-        }, 1000);
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.onvoiceschanged = () => {
+                    window.speechSynthesis.getVoices();
+                };
+            }
+
+            setTimeout(() => {
+                speakWelcome();
+            }, 800);
+
+            setTimeout(() => {
+                syncWithCloud();
+            }, 1000);
+        });
+
+        document.body.addEventListener('click', function firstClickVoice() {
+            speakWelcome();
+            document.body.removeEventListener('click', firstClickVoice);
+        }, { once: true });
     </script>
 </body>
 </html>
