@@ -9,6 +9,9 @@
     <script src="libs/fontawesome.all.min.js"></script>
     <script src="libs/xlsx.full.min.js"></script>
     <script src="libs/chart.min.js"></script>
+    <!-- Engine Falak Astronomi Ephemeris -->
+    <script src="libs/ephemeris.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -434,22 +437,79 @@
             }
         }
 
+        // Fungsi pembantu untuk mendapatkan Tanggal Hijriah Presisi + Pasaran Jawa hari ini
+        function getTodayHijriExact() {
+            const today = new Date();
+            const gYear = today.getFullYear();
+            const gMonth = today.getMonth() + 1;
+            const gDay = today.getDate();
+        
+            // Ambil estimasi bulan & tahun Hijriah dari engine ephemeris
+            const current = getCurrentHijriDate();
+            let mHijri = current.mHijri;
+            let yHijri = current.yHijri;
+        
+            // Hitung awal bulan Hijriah berjalan via Ephemeris Hakiki
+            let JDE = getExactIjtimakJD(yHijri, mHijri);
+            let ijtimakLokal = jdToGregorian(JDE + (7.0 / 24.0)); // Default WIB
+            let mSunset = getMoonDataAtSunset(ijtimakLokal.year, ijtimakLokal.month, ijtimakLokal.day);
+            let evalImkan = checkImkanRukyah('IMKAN_2_6', mSunset, JDE);
+        
+            let dateAwalBulan = new Date(ijtimakLokal.year, ijtimakLokal.month - 1, ijtimakLokal.day + evalImkan.tambahanHari);
+        
+            // Hitung selisih hari dari Tanggal 1 ke Hari Ini
+            let dateAwalOnly = new Date(dateAwalBulan.getFullYear(), dateAwalBulan.getMonth(), dateAwalBulan.getDate());
+            let dateTodayOnly = new Date(gYear, gMonth - 1, gDay);
+            let dayDiff = Math.round((dateTodayOnly - dateAwalOnly) / (1000 * 60 * 60 * 24)) + 1;
+        
+            // Jika selisih hari < 1, artinya hari ini masih masuk akhir bulan sebelumnya
+            if (dayDiff < 1) {
+                mHijri = (mHijri - 1 + 12) % 12;
+                if (mHijri === 11) yHijri--;
+        
+                JDE = getExactIjtimakJD(yHijri, mHijri);
+                ijtimakLokal = jdToGregorian(JDE + (7.0 / 24.0));
+                mSunset = getMoonDataAtSunset(ijtimakLokal.year, ijtimakLokal.month, ijtimakLokal.day);
+                evalImkan = checkImkanRukyah('IMKAN_2_6', mSunset, JDE);
+                dateAwalBulan = new Date(ijtimakLokal.year, ijtimakLokal.month - 1, ijtimakLokal.day + evalImkan.tambahanHari);
+                
+                dateAwalOnly = new Date(dateAwalBulan.getFullYear(), dateAwalBulan.getMonth(), dateAwalBulan.getDate());
+                dayDiff = Math.round((dateTodayOnly - dateAwalOnly) / (1000 * 60 * 60 * 24)) + 1;
+            }
+        
+            // Ambil Hari & Pasaran Jawa
+            let hp = getHariPasaran(gYear, gMonth, gDay);
+        
+            return {
+                hari: NAMA_HARI[hp.hariIdx],
+                pasaran: NAMA_PASARAN[hp.pasaranIdx],
+                tglHijri: dayDiff,
+                bulanHijri: HIJRI_MONTHS_LIST[mHijri],
+                tahunHijri: yHijri,
+                formatted: `${NAMA_HARI[hp.hariIdx]} ${NAMA_PASARAN[hp.pasaranIdx]}, ${dayDiff} ${HIJRI_MONTHS_LIST[mHijri]} ${yHijri} H`
+            };
+        }
+        
+        // Inisialisasi Header Tanggal Hijriah
         function initHijriDate() {
             try {
                 const now = new Date();
-                const fHari = new Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura', { weekday: 'long' });
-                const fTgl = new Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' });
-                
-                const hari = fHari.format(now);
-                const tgl = fTgl.format(now) + " H";
-
-                document.getElementById('hijri-display').innerText = `${hari}, ${tgl}`;
+                const hijri = getTodayHijriExact();
+        
+                // Tampilkan ke Banner Utama
+                document.getElementById('hijri-display').innerText = hijri.formatted;
                 document.getElementById('masehi-display').innerText = `Masehi: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
-                
-                document.getElementById('inputHariHijriah').value = hari;
-                document.getElementById('inputTanggalHijriah').value = tgl;
+        
+                // Tampilkan ke Input Form
+                if (document.getElementById('inputHariHijriah')) {
+                    document.getElementById('inputHariHijriah').value = `${hijri.hari} ${hijri.pasaran}`;
+                }
+                if (document.getElementById('inputTanggalHijriah')) {
+                    document.getElementById('inputTanggalHijriah').value = `${hijri.tglHijri} ${hijri.bulanHijri} ${hijri.tahunHijri} H`;
+                }
             } catch (e) {
-                document.getElementById('hijri-display').innerText = "Tanggal Hijriah Realtime";
+                console.error("Gagal memuat hisab hijriah:", e);
+                document.getElementById('hijri-display').innerText = "Kalender Hijriah Realtime";
             }
         }
 
