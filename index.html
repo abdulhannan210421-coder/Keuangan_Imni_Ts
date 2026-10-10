@@ -413,21 +413,25 @@
         function speakWelcome() {
             const user = JSON.parse(localStorage.getItem(USER_KEY));
             if (!user || !user.nama) return;
-
-            if ('speechSynthesis' in window) {
+        
+            const textToSpeak = `Assalamualaikum warahmatullah wabarakatuh, Selamat datang kembali ${user.panggilan} ${user.nama}, ada transaksi apa hari ini?`;
+        
+            // 1. Jalankan via Native Text-To-Speech HP jika berada di dalam APK Android
+            if (window.AndroidTTS && typeof window.AndroidTTS.speak === 'function') {
+                window.AndroidTTS.speak(textToSpeak);
+            } 
+            // 2. Jalankan via Web Speech API jika dibuka di Browser Web (Laptop/PC)
+            else if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-
-                const textToSpeak = `Assalamualaikum warahmatullah wabarakatuh, Selamat datang kembali ${user.panggilan} ${user.nama}, ada transaksi apa hari ini?`;
                 const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                
                 utterance.lang = 'id-ID';
                 utterance.rate = 0.9;
                 utterance.pitch = 1.0;
-
+        
                 const voices = window.speechSynthesis.getVoices();
                 const idVoice = voices.find(v => v.lang.includes('id') || v.lang.includes('ID'));
                 if (idVoice) utterance.voice = idVoice;
-
+        
                 window.speechSynthesis.speak(utterance);
             }
         }
@@ -479,16 +483,30 @@
             document.getElementById('live-total').innerText = formatRupiah(total);
         }
 
+        // Penanda tab aktif saat ini
+        window.currentTab = 'dashboard';
+        
         function switchTab(tab) {
+            window.currentTab = tab; // Simpan posisi tab saat ini
+        
             ['dashboard', 'input', 'data'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
                 document.getElementById(`nav-${t}`).className = "py-1 text-slate-400 flex flex-col items-center";
             });
-
+        
             document.getElementById(`tab-${tab}`).classList.remove('hidden');
             document.getElementById(`nav-${tab}`).className = "py-1 text-emerald-600 flex flex-col items-center";
         }
-
+        
+        // Fungsi ini dipanggil oleh Android saat tombol Back ditekan
+        function goBackToDashboard() {
+            if (window.currentTab !== 'dashboard') {
+                switchTab('dashboard'); // Kembali ke dashboard
+                return true;  // Mengembalikan true karena berhasil berpindah ke dashboard
+            }
+            return false; // Mengembalikan false jika memang sudah ada di dashboard
+        }
+        
         // ================= PENYIMPANAN LOKAL & BACKGROUND SYNC =================
         document.getElementById('finance-form').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -732,11 +750,11 @@
                 showToast("Peringatan", "Tidak ada data untuk diekspor.", false);
                 return;
             }
-
+        
             const today = new Date();
             const tglExport = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
             const fileName = `Laporan Keuangan Imni - ${tglExport}.xlsx`;
-
+        
             let excelRows = [];
             
             excelRows.push({
@@ -750,7 +768,7 @@
                 "Harga Satuan (Rp)": "Harga Satuan",
                 "Total (Rumus Excel)": ""
             });
-
+        
             localData.forEach((d, index) => {
                 let rowNum = index + 2;
                 excelRows.push({
@@ -765,7 +783,7 @@
                     "Total (Rumus Excel)": { t: 'n', f: `D${rowNum}*G${rowNum}*H${rowNum}` }
                 });
             });
-
+        
             let lastRow = localData.length + 1;
             excelRows.push({
                 "Timestamp": "",
@@ -778,17 +796,25 @@
                 "Harga Satuan (Rp)": "",
                 "Total (Rumus Excel)": { t: 'n', f: `SUM(I2:I${lastRow})` }
             });
-
+        
             const ws = XLSX.utils.json_to_sheet(excelRows, { skipHeader: true });
             ws['!cols'] = [
                 {wch: 20}, {wch: 15}, {wch: 20}, {wch: 8}, {wch: 12}, {wch: 30}, {wch: 8}, {wch: 15}, {wch: 20}
             ];
-
+        
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Laporan Keuangan");
             
-            XLSX.writeFile(wb, fileName);
-            showToast("Berhasil Ekspor!", `File "${fileName}" telah diunduh.`, true);
+            // --- SOLUSI UNDUH DI APK DAN BROWSER ---
+            if (window.AndroidDownload && typeof window.AndroidDownload.saveExcelBase64 === 'function') {
+                // 1. Jika dijalankan di dalam APK Android (Pakai Bridge Native Base64)
+                const base64Excel = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+                window.AndroidDownload.saveExcelBase64(base64Excel, fileName);
+            } else {
+                // 2. Jika dibuka di Browser Laptop/PC biasa
+                XLSX.writeFile(wb, fileName);
+                showToast("Berhasil Ekspor!", `File "${fileName}" telah diunduh.`, true);
+            }
         }
 
         // Inisialisasi saat aplikasi pertama dibuka
