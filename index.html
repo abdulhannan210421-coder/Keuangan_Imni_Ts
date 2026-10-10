@@ -61,7 +61,7 @@
                     <i class="fa-solid fa-user-gear text-xs"></i> <span id="user-name-text">Belum Diatur</span>
                 </h2>
             </div>
-            <button onclick="speakWelcome()" class="text-[10px] bg-teal-700/80 hover:bg-teal-600 px-2.5 py-1 rounded-lg text-emerald-100 font-semibold flex items-center gap-1 transition">
+            <button onclick="speakWelcome(true)" class="text-[10px] bg-teal-700/80 hover:bg-teal-600 px-2.5 py-1 rounded-lg text-emerald-100 font-semibold flex items-center gap-1 transition">
                 <i class="fa-solid fa-volume-high"></i> Sapa Suara
             </button>
         </div>
@@ -251,10 +251,15 @@
                     <h2 class="font-bold text-slate-800 text-sm flex items-center">
                         <i class="fa-solid fa-table-list text-emerald-600 mr-2"></i> Data Keuangan Lokal
                     </h2>
-                    <button onclick="syncWithCloud()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl font-bold transition flex items-center space-x-1">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                        <span>Sinkronisasi</span>
-                    </button>
+                    <div class="flex items-center space-x-1.5">
+                        <button onclick="syncWithCloud()" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-xl font-bold transition flex items-center space-x-1">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <span>Sinkronisasi</span>
+                        </button>
+                        <button onclick="deleteAllItems()" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-xl font-bold transition flex items-center space-x-1 border border-rose-200" title="Hapus Semua Data">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <button onclick="exportToExcel()" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 shadow-sm transition">
@@ -274,11 +279,12 @@
                                 <th class="p-2.5">Uraian Barang</th>
                                 <th class="p-2.5 text-center">Sesi × Qty</th>
                                 <th class="p-2.5 text-right">Total</th>
+                                <th class="p-2.5 text-center w-16">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="table-body" class="divide-y divide-slate-100 text-slate-700">
                             <tr>
-                                <td colspan="3" class="p-4 text-center text-slate-400">Memuat data dari penyimpanan lokal...</td>
+                                <td colspan="4" class="p-4 text-center text-slate-400">Memuat data dari penyimpanan lokal...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -305,6 +311,76 @@
             </button>
         </div>
     </nav>
+
+    <!-- MODAL EDIT TRANSAKSI -->
+    <div id="modal-edit" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <h3 class="font-extrabold text-slate-800 text-sm flex items-center">
+                    <i class="fa-solid fa-pen-to-square text-amber-500 mr-2"></i> Edit Transaksi
+                </h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <form id="edit-form" onsubmit="saveEditTransaction(event)" class="space-y-3 text-left">
+                <input type="hidden" id="edit-timestamp">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Jenis Transaksi</label>
+                    <select id="edit-jenis" class="w-full bg-slate-50 border border-slate-200 text-xs p-2.5 rounded-xl font-semibold">
+                        <option value="Pengeluaran">Pengeluaran</option>
+                        <option value="Pemasukan">Pemasukan</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Hari Hijriah</label>
+                    <input type="text" id="edit-hariHijriah" required class="w-full bg-slate-50 border border-slate-200 text-xs p-2.5 rounded-xl font-semibold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Tanggal Hijriah</label>
+                    <input type="text" id="edit-tanggalHijriah" required class="w-full bg-slate-50 border border-slate-200 text-xs p-2.5 rounded-xl font-semibold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Nama Barang / Uraian</label>
+                    <input type="text" id="edit-namaBarang" required class="w-full bg-slate-50 border border-slate-200 text-xs p-2.5 rounded-xl font-semibold">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 mb-1">SESI</label>
+                        <input type="number" id="edit-sesi" min="1" required oninput="hitungEditTotalLive()" class="w-full bg-slate-50 border border-slate-200 text-xs p-2 rounded-xl text-center font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 mb-1">QTY</label>
+                        <input type="number" id="edit-jumlah" min="1" required oninput="hitungEditTotalLive()" class="w-full bg-slate-50 border border-slate-200 text-xs p-2 rounded-xl text-center font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-600 mb-1">HARGA (Rp)</label>
+                        <input type="number" id="edit-hargaSatuan" min="0" required oninput="hitungEditTotalLive()" class="w-full bg-slate-50 border border-slate-200 text-xs p-2 rounded-xl font-bold">
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 p-3 rounded-xl border border-amber-200/60 flex justify-between items-center text-xs">
+                    <span class="font-bold text-amber-900">Total Baru:</span>
+                    <span id="edit-live-total" class="font-black text-amber-700">Rp 0</span>
+                </div>
+
+                <div class="flex space-x-2 pt-2">
+                    <button type="button" onclick="closeEditModal()" class="w-1/2 bg-slate-200 hover:bg-slate-300 text-slate-700 py-2.5 rounded-xl font-bold text-xs transition">
+                        Batal
+                    </button>
+                    <button type="submit" class="w-1/2 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold text-xs transition shadow-md">
+                        Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- MODAL SETTING PROFIL PENGGUNA -->
     <div id="modal-profile" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
@@ -344,7 +420,8 @@
         const USER_KEY = "keuangan_hijriah_user_profile";
 
         let localData = JSON.parse(localStorage.getItem(LOCAL_KEY)) || [];
-        let financeChartInstance = null; // Variabel penampung instance Chart.js
+        let financeChartInstance = null;
+        let isGreetingSpoken = false; // Flag penanda agar suara tidak dipanggil ganda
 
         function formatRupiah(num) {
             return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
@@ -408,61 +485,54 @@
             document.getElementById('user-name-text').innerText = `${panggilan} ${nama}`;
             
             showToast("Profil Disimpan", `Selamat datang ${panggilan} ${nama}!`, true);
-            speakWelcome();
+            speakWelcome(true);
         }
 
-        function speakWelcome() {
+        function speakWelcome(force = false) {
+            if (isGreetingSpoken && !force) return; // Mencegah sapaan berulang
             const user = JSON.parse(localStorage.getItem(USER_KEY));
             if (!user || !user.nama) return;
-        
+
+            isGreetingSpoken = true;
             const textToSpeak = `Assalamualaikum warahmatullah wabarakatuh, Selamat datang kembali ${user.panggilan} ${user.nama}, ada transaksi apa hari ini?`;
-        
-            // 1. Jalankan via Native Text-To-Speech HP jika berada di dalam APK Android
+
             if (window.AndroidTTS && typeof window.AndroidTTS.speak === 'function') {
                 window.AndroidTTS.speak(textToSpeak);
-            } 
-            // 2. Jalankan via Web Speech API jika dibuka di Browser Web (Laptop/PC)
-            else if ('speechSynthesis' in window) {
+            } else if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(textToSpeak);
                 utterance.lang = 'id-ID';
                 utterance.rate = 0.9;
                 utterance.pitch = 1.0;
-        
+
                 const voices = window.speechSynthesis.getVoices();
                 const idVoice = voices.find(v => v.lang.includes('id') || v.lang.includes('ID'));
                 if (idVoice) utterance.voice = idVoice;
-        
+
                 window.speechSynthesis.speak(utterance);
             }
         }
 
-        // Fungsi pembantu untuk mendapatkan Tanggal Hijriah Presisi + Pasaran Jawa hari ini
         function getTodayHijriExact() {
             const today = new Date();
             const gYear = today.getFullYear();
             const gMonth = today.getMonth() + 1;
             const gDay = today.getDate();
         
-            // Ambil estimasi bulan & tahun Hijriah dari engine ephemeris
             const current = getCurrentHijriDate();
             let mHijri = current.mHijri;
             let yHijri = current.yHijri;
         
-            // Hitung awal bulan Hijriah berjalan via Ephemeris Hakiki
             let JDE = getExactIjtimakJD(yHijri, mHijri);
-            let ijtimakLokal = jdToGregorian(JDE + (7.0 / 24.0)); // Default WIB
+            let ijtimakLokal = jdToGregorian(JDE + (7.0 / 24.0));
             let mSunset = getMoonDataAtSunset(ijtimakLokal.year, ijtimakLokal.month, ijtimakLokal.day);
             let evalImkan = checkImkanRukyah('IMKAN_2_6', mSunset, JDE);
         
             let dateAwalBulan = new Date(ijtimakLokal.year, ijtimakLokal.month - 1, ijtimakLokal.day + evalImkan.tambahanHari);
-        
-            // Hitung selisih hari dari Tanggal 1 ke Hari Ini
             let dateAwalOnly = new Date(dateAwalBulan.getFullYear(), dateAwalBulan.getMonth(), dateAwalBulan.getDate());
             let dateTodayOnly = new Date(gYear, gMonth - 1, gDay);
             let dayDiff = Math.round((dateTodayOnly - dateAwalOnly) / (1000 * 60 * 60 * 24)) + 1;
         
-            // Jika selisih hari < 1, artinya hari ini masih masuk akhir bulan sebelumnya
             if (dayDiff < 1) {
                 mHijri = (mHijri - 1 + 12) % 12;
                 if (mHijri === 11) yHijri--;
@@ -477,7 +547,6 @@
                 dayDiff = Math.round((dateTodayOnly - dateAwalOnly) / (1000 * 60 * 60 * 24)) + 1;
             }
         
-            // Ambil Hari & Pasaran Jawa
             let hp = getHariPasaran(gYear, gMonth, gDay);
         
             return {
@@ -490,17 +559,14 @@
             };
         }
         
-        // Inisialisasi Header Tanggal Hijriah
         function initHijriDate() {
             try {
                 const now = new Date();
                 const hijri = getTodayHijriExact();
         
-                // Tampilkan ke Banner Utama
                 document.getElementById('hijri-display').innerText = hijri.formatted;
                 document.getElementById('masehi-display').innerText = `Masehi: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
         
-                // Tampilkan ke Input Form
                 if (document.getElementById('inputHariHijriah')) {
                     document.getElementById('inputHariHijriah').value = `${hijri.hari} ${hijri.pasaran}`;
                 }
@@ -541,11 +607,10 @@
             document.getElementById('live-total').innerText = formatRupiah(total);
         }
 
-        // Penanda tab aktif saat ini
         window.currentTab = 'dashboard';
         
         function switchTab(tab) {
-            window.currentTab = tab; // Simpan posisi tab saat ini
+            window.currentTab = tab;
         
             ['dashboard', 'input', 'data'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
@@ -556,16 +621,15 @@
             document.getElementById(`nav-${tab}`).className = "py-1 text-emerald-600 flex flex-col items-center";
         }
         
-        // Fungsi ini dipanggil oleh Android saat tombol Back ditekan
         function goBackToDashboard() {
             if (window.currentTab !== 'dashboard') {
-                switchTab('dashboard'); // Kembali ke dashboard
-                return true;  // Mengembalikan true karena berhasil berpindah ke dashboard
+                switchTab('dashboard');
+                return true;
             }
-            return false; // Mengembalikan false jika memang sudah ada di dashboard
+            return false;
         }
         
-        // ================= PENYIMPANAN LOKAL & BACKGROUND SYNC =================
+        // ================= TAMBAH, EDIT, HAPUS & SINKRONISASI =================
         document.getElementById('finance-form').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -575,6 +639,7 @@
             const total = sesi * qty * harga;
 
             const newTransaction = {
+                action: 'ADD',
                 timestamp: new Date().toISOString(),
                 hariHijriah: document.getElementById('inputHariHijriah').value,
                 tanggalHijriah: document.getElementById('inputTanggalHijriah').value,
@@ -598,18 +663,122 @@
             initHijriDate();
             hitungTotalLive();
 
-            backgroundSyncOne(newTransaction);
+            syncActionToCloud(newTransaction);
         });
 
-        function backgroundSyncOne(item) {
+        // --- FITUR EDIT TRANSAKSI ---
+        function editItem(timestamp) {
+            const item = localData.find(d => String(d.timestamp) === String(timestamp));
+            if (!item) return;
+
+            document.getElementById('edit-timestamp').value = item.timestamp;
+            document.getElementById('edit-jenis').value = item.jenis || 'Pengeluaran';
+            document.getElementById('edit-hariHijriah').value = item.hariHijriah || '';
+            document.getElementById('edit-tanggalHijriah').value = item.tanggalHijriah || '';
+            document.getElementById('edit-namaBarang').value = item.namaBarang || '';
+            document.getElementById('edit-sesi').value = item.sesi || 1;
+            document.getElementById('edit-jumlah').value = item.jumlah || 1;
+            document.getElementById('edit-hargaSatuan').value = item.hargaSatuan || 0;
+
+            hitungEditTotalLive();
+            document.getElementById('modal-edit').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('modal-edit').classList.add('hidden');
+        }
+
+        function hitungEditTotalLive() {
+            const sesi = parseFloat(document.getElementById('edit-sesi').value) || 1;
+            const qty = parseFloat(document.getElementById('edit-jumlah').value) || 0;
+            const harga = parseFloat(document.getElementById('edit-hargaSatuan').value) || 0;
+            const total = sesi * qty * harga;
+
+            document.getElementById('edit-live-total').innerText = formatRupiah(total);
+        }
+
+        function saveEditTransaction(e) {
+            e.preventDefault();
+
+            const timestamp = document.getElementById('edit-timestamp').value;
+            const idx = localData.findIndex(d => String(d.timestamp) === String(timestamp));
+            if (idx === -1) return;
+
+            const sesi = parseFloat(document.getElementById('edit-sesi').value) || 1;
+            const qty = parseFloat(document.getElementById('edit-jumlah').value) || 0;
+            const harga = parseFloat(document.getElementById('edit-hargaSatuan').value) || 0;
+            const total = sesi * qty * harga;
+
+            const updatedItem = {
+                action: 'EDIT',
+                timestamp: timestamp,
+                hariHijriah: document.getElementById('edit-hariHijriah').value,
+                tanggalHijriah: document.getElementById('edit-tanggalHijriah').value,
+                sesi: sesi,
+                jenis: document.getElementById('edit-jenis').value,
+                namaBarang: document.getElementById('edit-namaBarang').value,
+                jumlah: qty,
+                hargaSatuan: harga,
+                total: total,
+                synced: false
+            };
+
+            localData[idx] = updatedItem;
+            localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
+
+            renderTable(localData);
+            calculateDashboard(localData);
+            closeEditModal();
+            showToast("Berhasil Diperbarui", "Data transaksi telah diperbarui.", true);
+
+            syncActionToCloud(updatedItem);
+        }
+
+        // --- FITUR HAPUS PER ITEM (DENGAN ALERT KONFIRMASI) ---
+        function deleteItem(timestamp) {
+            const item = localData.find(d => String(d.timestamp) === String(timestamp));
+            if (!item) return;
+
+            const konfirmasi = confirm(`Apakah Anda yakin ingin menghapus transaksi:\n"${item.namaBarang}"?`);
+            if (!konfirmasi) return;
+
+            localData = localData.filter(d => String(d.timestamp) !== String(timestamp));
+            localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
+
+            renderTable(localData);
+            calculateDashboard(localData);
+            showToast("Transaksi Dihapus", `"${item.namaBarang}" berhasil dihapus.`, false);
+
+            syncActionToCloud({ action: 'DELETE', timestamp: timestamp });
+        }
+
+        // --- FITUR HAPUS SELURUH DATA (DENGAN ALERT KONFIRMASI) ---
+        function deleteAllItems() {
+            if (localData.length === 0) {
+                showToast("Informasi", "Penyimpanan lokal sudah kosong.", true);
+                return;
+            }
+
+            const konfirmasi = confirm("⚠️ PERINGATAN BERSYARAT:\nApakah Anda yakin ingin MENGHAPUS SELURUH DATA transaksi baik di lokal maupun di cloud?");
+            if (!konfirmasi) return;
+
+            localData = [];
+            localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
+
+            renderTable(localData);
+            calculateDashboard(localData);
+            showToast("Seluruh Data Dihapus", "Semua transaksi telah dibersihkan.", false);
+
+            syncActionToCloud({ action: 'DELETE_ALL' });
+        }
+
+        function syncActionToCloud(payload) {
             fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(item)
+                body: JSON.stringify(payload)
             }).then(() => {
-                item.synced = true;
-                localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
                 updateSyncIndicator(true);
             }).catch(() => {
                 updateSyncIndicator(false);
@@ -621,7 +790,7 @@
             fetch(SCRIPT_URL)
             .then(res => res.json())
             .then(cloudData => {
-                if (Array.isArray(cloudData) && cloudData.length > 0) {
+                if (Array.isArray(cloudData)) {
                     localData = cloudData;
                     localStorage.setItem(LOCAL_KEY, JSON.stringify(localData));
                     renderTable(localData);
@@ -653,7 +822,7 @@
             tbody.innerHTML = '';
 
             if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-400">Belum ada transaksi tersimpan.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Belum ada transaksi tersimpan.</td></tr>`;
                 document.getElementById('total-item-count').innerText = `0 tersimpan`;
                 return;
             }
@@ -667,7 +836,7 @@
                 row.innerHTML = `
                     <td class="p-2.5 border-b">
                         <span class="font-bold text-slate-800 block">${item.namaBarang}</span>
-                        <span class="text-[10px] text-slate-400">${item.hariHijriah}, ${item.tanggalHijriah}</span>
+                        <span class="text-[10px] text-slate-400">${item.hariHijriah || ''}, ${item.tanggalHijriah || ''}</span>
                     </td>
                     <td class="p-2.5 border-b text-center">
                         <span class="font-bold text-slate-700 block">${item.sesi || 1} × ${item.jumlah}</span>
@@ -675,6 +844,16 @@
                     </td>
                     <td class="p-2.5 border-b text-right font-black ${isMasuk ? 'text-emerald-600' : 'text-rose-500'}">
                         ${isMasuk ? '+' : '-'}${formatRupiah(item.total)}
+                    </td>
+                    <td class="p-2.5 border-b text-center">
+                        <div class="flex items-center justify-center space-x-1">
+                            <button onclick="editItem('${item.timestamp}')" title="Edit Data" class="w-7 h-7 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center transition">
+                                <i class="fa-solid fa-pen-to-square text-xs"></i>
+                            </button>
+                            <button onclick="deleteItem('${item.timestamp}')" title="Hapus Data" class="w-7 h-7 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center transition">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -688,7 +867,6 @@
             let maxKeluar = 0;
             let maxMasuk = 0;
 
-            // Pengelompokan Data Berdasarkan Tanggal untuk Grafik
             const dateGroups = {};
 
             data.forEach(d => {
@@ -710,12 +888,10 @@
                 }
             });
 
-            // Update Total Saldo Card
             document.getElementById('total-pemasukan').innerText = formatRupiah(masuk);
             document.getElementById('total-pengeluaran').innerText = formatRupiah(keluar);
             document.getElementById('saldo-bersih').innerText = formatRupiah(masuk - keluar);
 
-            // Update Kartu Statistik Keuangan
             const totalTransaksi = data.length;
             const avgTransaksi = totalTransaksi > 0 ? (masuk + keluar) / totalTransaksi : 0;
             const rasioBeban = masuk > 0 ? ((keluar / masuk) * 100).toFixed(1) : (keluar > 0 ? 100 : 0);
@@ -725,19 +901,16 @@
             document.getElementById('stat-avg-transaksi').innerText = formatRupiah(avgTransaksi);
             document.getElementById('stat-rasio-beban').innerText = `${rasioBeban}%`;
 
-            // Render Grafik Tren
             renderFinanceChart(dateGroups);
         }
 
         function renderFinanceChart(dateGroups) {
             const ctx = document.getElementById('financeChart').getContext('2d');
             
-            // Ambil maksimal 7 tanggal terakhir agar grafik tetap rapi
             const labels = Object.keys(dateGroups).slice(-7);
             const dataPemasukan = labels.map(lbl => dateGroups[lbl].masuk);
             const dataPengeluaran = labels.map(lbl => dateGroups[lbl].keluar);
 
-            // Hancurkan chart lama jika ada sebelum merender chart baru
             if (financeChartInstance) {
                 financeChartInstance.destroy();
             }
@@ -750,13 +923,13 @@
                         {
                             label: 'Pemasukan',
                             data: dataPemasukan.length > 0 ? dataPemasukan : [0],
-                            backgroundColor: '#10b981', // Emerald-500
+                            backgroundColor: '#10b981',
                             borderRadius: 6
                         },
                         {
                             label: 'Pengeluaran',
                             data: dataPengeluaran.length > 0 ? dataPengeluaran : [0],
-                            backgroundColor: '#f43f5e', // Rose-500
+                            backgroundColor: '#f43f5e',
                             borderRadius: 6
                         }
                     ]
@@ -863,19 +1036,16 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Laporan Keuangan");
             
-            // --- SOLUSI UNDUH DI APK DAN BROWSER ---
             if (window.AndroidDownload && typeof window.AndroidDownload.saveExcelBase64 === 'function') {
-                // 1. Jika dijalankan di dalam APK Android (Pakai Bridge Native Base64)
                 const base64Excel = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
                 window.AndroidDownload.saveExcelBase64(base64Excel, fileName);
             } else {
-                // 2. Jika dibuka di Browser Laptop/PC biasa
                 XLSX.writeFile(wb, fileName);
                 showToast("Berhasil Ekspor!", `File "${fileName}" telah diunduh.`, true);
             }
         }
 
-        // Inisialisasi saat aplikasi pertama dibuka
+        // Inisialisasi Aplikasi
         window.addEventListener('DOMContentLoaded', () => {
             initHijriDate();
             hitungTotalLive();
@@ -895,13 +1065,8 @@
 
             setTimeout(() => {
                 syncWithCloud();
-            }, 1000);
+            }, 1200);
         });
-
-        document.body.addEventListener('click', function firstClickVoice() {
-            speakWelcome();
-            document.body.removeEventListener('click', firstClickVoice);
-        }, { once: true });
     </script>
 </body>
 </html>
